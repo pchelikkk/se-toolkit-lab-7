@@ -119,45 +119,43 @@ We refer to your fork as `fork` and to the original repo as `upstream`.
    postgres   Up 55 seconds (healthy)
    ```
 
-   <details><summary><b>Troubleshooting (click to open)</b></summary>
-
-   <h4>Port conflict (<code>port is already allocated</code>)</h4>
-
-   Labs 5 and 6 use the same ports (42001, 42002, 42004). If you have Lab 5 containers running, stop them first:
-
-   ```terminal
-   cd ../se-toolkit-lab-5
-   docker compose --env-file .env.docker.secret down
-   cd ../se-toolkit-lab-6
-   ```
-
-   If that doesn't help, [clean up `Docker`](../../wiki/docker.md#clean-up-docker), then run the `docker compose up` command again.
-
-   <h4>Containers exit immediately</h4>
-
-   Rebuild all containers from scratch:
-
-   ```terminal
-   docker compose --env-file .env.docker.secret down -v
-   docker compose --env-file .env.docker.secret up --build -d
-   ```
-
-   <h4>DNS resolution errors (<code>getaddrinfo EAI_AGAIN</code>)</h4>
-
-   If you see DNS errors like `getaddrinfo EAI_AGAIN registry.npmjs.org`, Docker can't resolve domain names. This is a university network DNS issue. Add Google DNS to Docker:
-
-   ```terminal
-   sudo tee /etc/docker/daemon.json <<'EOF'
-   {
-     "dns": ["8.8.8.8", "8.8.4.4"]
-   }
-   EOF
-   sudo systemctl restart docker
-   ```
-
-   Then run the `docker compose up` command again.
-
-   </details>
+> <h3>Troubleshooting</h3>
+>
+> **Port conflict (`port is already allocated`).**
+>
+> Labs 5 and 6 use the same ports (42001, 42002, 42004). If you have Lab 5 containers running, stop them first:
+>
+> ```terminal
+> cd ../se-toolkit-lab-5
+> docker compose --env-file .env.docker.secret down
+> cd ../se-toolkit-lab-6
+> ```
+>
+> If that doesn't help, [clean up `Docker`](../../wiki/docker.md#clean-up-docker), then run the `docker compose up` command again.
+>
+> **Containers exit immediately.**
+>
+> Rebuild all containers from scratch:
+>
+> ```terminal
+> docker compose --env-file .env.docker.secret down -v
+> docker compose --env-file .env.docker.secret up --build -d
+> ```
+>
+> **DNS resolution errors (`getaddrinfo EAI_AGAIN`).**
+>
+> If you see DNS errors like `getaddrinfo EAI_AGAIN registry.npmjs.org`, `Docker` can't resolve domain names. This is a university network DNS issue. Add Google DNS to `Docker`:
+>
+> ```terminal
+> sudo tee /etc/docker/daemon.json <<'EOF'
+> {
+>   "dns": ["8.8.8.8", "8.8.4.4"]
+> }
+> EOF
+> sudo systemctl restart docker
+> ```
+>
+> Then run the `docker compose up` command again.
 
 ### 1.4. Populate the database
 
