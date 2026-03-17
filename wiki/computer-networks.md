@@ -33,6 +33,7 @@
   - [Components of a URL](#components-of-a-url)
     - [Query parameter](#query-parameter)
   - [URL example](#url-example)
+- [Firewall](#firewall)
 - [Troubleshooting](#troubleshooting)
   - [Service is running but a request fails](#service-is-running-but-a-request-fails)
 
@@ -236,6 +237,14 @@ Where:
 - Path: `/search`
 - Query: `?q=cats&page=1`
 - Fragment: `#results`
+
+## Firewall
+
+A firewall is a network security system that monitors and controls incoming and outgoing [network](#what-is-a-network) traffic based on predefined security rules.
+
+It permits or blocks connections based on [port](#port) numbers, [IP addresses](#ip-address), and [protocols](#protocol).
+
+Example: a firewall may allow [`SSH`](./ssh.md#what-is-ssh) traffic on port 22 while blocking all other incoming connections.
 
 ## Troubleshooting
 
