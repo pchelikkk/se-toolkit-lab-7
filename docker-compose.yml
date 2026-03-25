@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
       args:
-        REGISTRY_PREFIX: ${REGISTRY_PREFIX:-harbor.pg.innopolis.university/docker-hub-cache/}
+        REGISTRY_PREFIX: ${REGISTRY_PREFIX-harbor.pg.innopolis.university/docker-hub-cache/}
     restart: unless-stopped
     networks:
       - lms-network
@@ -33,7 +33,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: ${REGISTRY_PREFIX:-harbor.pg.innopolis.university/docker-hub-cache/}postgres:18.3-alpine
+    image: ${REGISTRY_PREFIX-harbor.pg.innopolis.university/docker-hub-cache/}postgres:18.3-alpine
     restart: unless-stopped
     networks:
       - lms-network
@@ -57,7 +57,7 @@ services:
       retries: 5
 
   pgadmin:
-    image: ${REGISTRY_PREFIX:-harbor.pg.innopolis.university/docker-hub-cache/}dpage/pgadmin4:latest
+    image: ${REGISTRY_PREFIX-harbor.pg.innopolis.university/docker-hub-cache/}dpage/pgadmin4:latest
     restart: unless-stopped
     networks:
       - lms-network
@@ -75,7 +75,7 @@ services:
     build:
       context: frontend/
       args:
-        REGISTRY_PREFIX: ${REGISTRY_PREFIX:-harbor.pg.innopolis.university/docker-hub-cache/}
+        REGISTRY_PREFIX: ${REGISTRY_PREFIX-harbor.pg.innopolis.university/docker-hub-cache/}
     networks:
       - lms-network
     depends_on:
