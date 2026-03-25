@@ -1,66 +1,77 @@
 from __future__ import annotations
 
 from bot.config import Settings
-from bot.services.lms_api import LmsApiClient
-
-
-def _help_text() -> str:
-    return (
-        "Available commands:\n"
-        "/start - show welcome message\n"
-        "/help - show this help\n"
-        "/health - check LMS backend status\n"
-        "/labs - list available labs\n"
-        "/scores <lab> - show scores for a lab (placeholder for now)"
-    )
+from bot.handlers.core.text import build_help_text
+from bot.services.lms_api import BackendError, LmsApiClient
 
 
 async def handle_start(_: Settings) -> str:
     return (
-        "Hello! I am your LMS bot.\n"
-        "I can help you inspect the LMS backend and later answer questions in natural language.\n"
+        "Welcome to the LMS bot.\n"
+        "I can check backend health, list labs, and show pass rates.\n"
         "Use /help to see available commands."
     )
 
 
 async def handle_help(_: Settings) -> str:
-    return _help_text()
+    return build_help_text()
 
 
 async def handle_health(settings: Settings) -> str:
     client = LmsApiClient(settings.lms_api_base_url, settings.lms_api_key)
-    healthy = await client.is_healthy()
-    if healthy:
-        return "LMS backend is up and reachable."
-    return "LMS backend is down or unreachable right now."
+    try:
+        _, item_count = await client.health_summary()
+        return f"Backend is healthy. {item_count} items available."
+    except BackendError as exc:
+        return f"Backend error: {exc}. Check that the services are running."
 
 
 async def handle_labs(settings: Settings) -> str:
     client = LmsApiClient(settings.lms_api_base_url, settings.lms_api_key)
     try:
         labs = await client.get_labs()
-    except Exception:
-        return "Could not fetch labs from the LMS backend."
+    except BackendError as exc:
+        return f"Backend error: {exc}. Check that the services are running."
 
     if not labs:
         return "No labs found."
 
     lines: list[str] = ["Available labs:"]
-    for index, lab in enumerate(labs, start=1):
+    for lab in labs:
         title = str(lab.get("title", "Untitled lab"))
-        lines.append(f"{index}. {title}")
+        lines.append(f"- {title}")
 
     return "\n".join(lines)
 
 
-async def handle_scores(_: Settings, lab_name: str | None) -> str:
-    target = lab_name.strip() if lab_name else "<lab>"
-    return f"Scores for {target} are not implemented yet."
+async def handle_scores(settings: Settings, lab_name: str | None) -> str:
+    if not lab_name or not lab_name.strip():
+        return "Usage: /scores <lab>. Example: /scores lab-04"
+
+    client = LmsApiClient(settings.lms_api_base_url, settings.lms_api_key)
+    target = lab_name.strip().lower()
+
+    try:
+        rows = await client.get_pass_rates(target)
+    except BackendError as exc:
+        return f"Backend error: {exc}. Check that the services are running."
+
+    if not rows:
+        return f"No pass-rate data found for {target}."
+
+    lines = [f"Pass rates for {target}:"]
+    for row in rows:
+        task = str(row.get("task", "Unnamed task"))
+        avg_score = float(row.get("avg_score", 0.0))
+        attempts = int(row.get("attempts", 0))
+        lines.append(f"- {task}: {avg_score:.1f}% ({attempts} attempts)")
+
+    return "\n".join(lines)
 
 
 async def handle_plain_text(_: Settings, text: str) -> str:
     return (
-        "Plain-text intent routing is not implemented yet.\n"
+        "Natural-language routing is not implemented yet.\n"
         f"You said: {text}"
     )
 
@@ -87,5 +98,8 @@ async def dispatch_command(settings: Settings, text: str) -> str:
         parts = normalized.split(maxsplit=1)
         lab_name = parts[1] if len(parts) > 1 else None
         return await handle_scores(settings, lab_name)
+
+    if normalized.startswith("/"):
+        return "Unknown command. Use /help to see available commands."
 
     return await handle_plain_text(settings, normalized)
