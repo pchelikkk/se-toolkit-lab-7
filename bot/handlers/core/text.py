@@ -6,7 +6,7 @@ def build_help_text() -> str:
         "Available commands:\n"
         "/start - show welcome message\n"
         "/help - show this help\n"
-        "/health - check LMS backend status\n"
-        "/labs - list available labs\n"
-        "/scores <lab> - show scores for a lab (placeholder for now)"
+        "/health - check LMS backend status and item count\n"
+        "/labs - list available labs from the LMS backend\n"
+        "/scores <lab> - show per-task pass rates for a lab"
     )
