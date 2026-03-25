@@ -10,6 +10,14 @@ class BackendError(Exception):
     pass
 
 
+def normalize_lab_identifier(value: str) -> str:
+    text = value.strip().lower().replace("_", "-")
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if digits:
+        return f"lab-{int(digits):02d}"
+    return text
+
+
 class LmsApiClient:
     def __init__(self, base_url: str, api_key: str) -> None:
         self.base_url = base_url.rstrip("/")
@@ -49,10 +57,22 @@ class LmsApiClient:
     async def _get_json(self, path: str, params: dict[str, Any] | None = None) -> Any:
         url = f"{self.base_url}{path}"
         try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
+            async with httpx.AsyncClient(timeout=20.0) as client:
                 response = await client.get(url, headers=self._headers, params=params)
                 response.raise_for_status()
                 return response.json()
+        except Exception as exc:
+            raise BackendError(self._format_request_error(exc)) from exc
+
+    async def _post_json(self, path: str, body: dict[str, Any] | None = None) -> Any:
+        url = f"{self.base_url}{path}"
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, headers=self._headers, json=body or {})
+                response.raise_for_status()
+                if response.content:
+                    return response.json()
+                return {"ok": True}
         except Exception as exc:
             raise BackendError(self._format_request_error(exc)) from exc
 
@@ -62,15 +82,61 @@ class LmsApiClient:
             raise BackendError("invalid response format from /items/")
         return [item for item in data if isinstance(item, dict)]
 
-    async def get_labs(self) -> list[dict[str, Any]]:
-        items = await self.get_items()
-        return [item for item in items if item.get("type") == "lab"]
+    async def get_learners(self) -> list[dict[str, Any]]:
+        data = await self._get_json("/learners/")
+        if not isinstance(data, list):
+            raise BackendError("invalid response format from /learners/")
+        return [row for row in data if isinstance(row, dict)]
+
+    async def get_scores(self, lab: str) -> list[dict[str, Any]]:
+        data = await self._get_json("/analytics/scores", params={"lab": normalize_lab_identifier(lab)})
+        if not isinstance(data, list):
+            raise BackendError("invalid response format from /analytics/scores")
+        return [row for row in data if isinstance(row, dict)]
 
     async def get_pass_rates(self, lab: str) -> list[dict[str, Any]]:
-        data = await self._get_json("/analytics/pass-rates", params={"lab": lab})
+        data = await self._get_json("/analytics/pass-rates", params={"lab": normalize_lab_identifier(lab)})
         if not isinstance(data, list):
             raise BackendError("invalid response format from /analytics/pass-rates")
         return [row for row in data if isinstance(row, dict)]
+
+    async def get_timeline(self, lab: str) -> list[dict[str, Any]]:
+        data = await self._get_json("/analytics/timeline", params={"lab": normalize_lab_identifier(lab)})
+        if not isinstance(data, list):
+            raise BackendError("invalid response format from /analytics/timeline")
+        return [row for row in data if isinstance(row, dict)]
+
+    async def get_groups(self, lab: str) -> list[dict[str, Any]]:
+        data = await self._get_json("/analytics/groups", params={"lab": normalize_lab_identifier(lab)})
+        if not isinstance(data, list):
+            raise BackendError("invalid response format from /analytics/groups")
+        return [row for row in data if isinstance(row, dict)]
+
+    async def get_top_learners(self, lab: str, limit: int = 10) -> list[dict[str, Any]]:
+        safe_limit = max(1, min(int(limit), 20))
+        data = await self._get_json(
+            "/analytics/top-learners",
+            params={"lab": normalize_lab_identifier(lab), "limit": safe_limit},
+        )
+        if not isinstance(data, list):
+            raise BackendError("invalid response format from /analytics/top-learners")
+        return [row for row in data if isinstance(row, dict)]
+
+    async def get_completion_rate(self, lab: str) -> dict[str, Any]:
+        data = await self._get_json("/analytics/completion-rate", params={"lab": normalize_lab_identifier(lab)})
+        if not isinstance(data, dict):
+            raise BackendError("invalid response format from /analytics/completion-rate")
+        return data
+
+    async def trigger_sync(self) -> dict[str, Any]:
+        data = await self._post_json("/pipeline/sync", {})
+        if not isinstance(data, dict):
+            return {"ok": True}
+        return data
+
+    async def get_labs(self) -> list[dict[str, Any]]:
+        items = await self.get_items()
+        return [item for item in items if item.get("type") == "lab"]
 
     async def health_summary(self) -> tuple[bool, int]:
         items = await self.get_items()

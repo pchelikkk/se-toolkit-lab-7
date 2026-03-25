@@ -7,18 +7,26 @@ from pathlib import Path
 
 from aiogram import Bot, Dispatcher
 from aiogram.filters import CommandStart
-from aiogram.types import Message
+from aiogram.types import CallbackQuery, Message
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from bot.config import get_settings
 from bot.handlers.commands import dispatch_command, handle_help, handle_start
+from bot.keyboards import build_start_keyboard
+from bot.services.llm_router import LlmRouter
 
 
 async def run_test_mode(text: str) -> int:
     settings = get_settings()
-    response = await dispatch_command(settings, text)
+
+    if text.strip().startswith("/"):
+        response = await dispatch_command(settings, text)
+    else:
+        router = LlmRouter(settings)
+        response = await router.route(text)
+
     print(response)
     return 0
 
@@ -31,19 +39,43 @@ async def run_telegram_mode() -> int:
 
     bot = Bot(token=settings.bot_token)
     dp = Dispatcher()
+    llm_router = LlmRouter(settings)
 
     @dp.message(CommandStart())
     async def start_handler(message: Message) -> None:
-        await message.answer(await handle_start(settings))
+        await message.answer(await handle_start(settings), reply_markup=build_start_keyboard())
+
+    @dp.callback_query()
+    async def callback_handler(callback: CallbackQuery) -> None:
+        data = callback.data or ""
+
+        if data == "help":
+            response = await handle_help(settings)
+        elif data == "health":
+            response = await dispatch_command(settings, "/health")
+        elif data == "labs":
+            response = await dispatch_command(settings, "/labs")
+        elif data == "worst_lab":
+            response = await llm_router.route("which lab has the lowest pass rate?")
+        else:
+            response = "Unknown action."
+
+        if callback.message:
+            await callback.message.answer(response, reply_markup=build_start_keyboard())
+        await callback.answer()
 
     @dp.message()
     async def message_handler(message: Message) -> None:
-        text = message.text or ""
-        if text.strip().startswith("/help"):
-            await message.answer(await handle_help(settings))
+        text = (message.text or "").strip()
+        if not text:
+            await message.answer("Please send text or use a button.")
             return
 
-        response = await dispatch_command(settings, text)
+        if text.startswith("/"):
+            response = await dispatch_command(settings, text)
+        else:
+            response = await llm_router.route(text)
+
         await message.answer(response)
 
     await dp.start_polling(bot)
