@@ -2,17 +2,7 @@ from __future__ import annotations
 
 from bot.config import Settings
 from bot.services.lms_api import LmsApiClient
-
-
-def _help_text() -> str:
-    return (
-        "Available commands:\n"
-        "/start - show welcome message\n"
-        "/help - show this help\n"
-        "/health - check LMS backend status\n"
-        "/labs - list available labs\n"
-        "/scores <lab> - show scores for a lab (placeholder for now)"
-    )
+from bot.handlers.core.text import build_help_text
 
 
 async def handle_start(_: Settings) -> str:
@@ -24,7 +14,7 @@ async def handle_start(_: Settings) -> str:
 
 
 async def handle_help(_: Settings) -> str:
-    return _help_text()
+    return build_help_text()
 
 
 async def handle_health(settings: Settings) -> str:
